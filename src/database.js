@@ -13,8 +13,27 @@ export class Database {
     fs.writeFile(databasePath, JSON.stringify(this.#database));
   }
 
-  select(table) {
-    const data = this.#database[table] ?? [];
+  #load() {
+    fs.readFile(databasePath, "utf-8")
+      .then((data) => {
+        this.#database = JSON.parse(data);
+      })
+      .catch(() => {
+        this.#persist();
+      });
+  }
+
+  select(table, search) {
+    let data = this.#database[table] ?? [];
+
+    if (search) {
+      data = data.filter((row) => {
+        return Object.entries(search).some(([key, value]) => {
+          return row[key].toLowerCase().includes(value.toLowerCase());
+        });
+      });
+    }
+
     return data;
   }
 
@@ -30,13 +49,46 @@ export class Database {
     return data;
   }
 
-  #load() {
-    fs.readFile(databasePath, "utf-8")
-      .then((data) => {
-        this.#database = JSON.parse(data);
-      })
-      .catch(() => {
-        this.#persist();
-      });
+  update(table, id, data) {
+    const rowIndex = this.#database[table].findIndex((row) => row.id === id);
+
+    if (rowIndex > -1) {
+      this.#database[table][rowIndex] = {
+        ...this.#database[table][rowIndex],
+        ...data,
+      };
+
+      this.#persist();
+    }
+  }
+
+  delete(table, id) {
+    console.log(id);
+    const rowIndex = this.#database[table].findIndex((row) => row.id === id);
+
+    if (rowIndex > -1) {
+      this.#database[table].splice(rowIndex, 1);
+      this.#persist();
+    }
+  }
+
+  completeTask(table, id) {
+    const rowIndex = this.#database[table].findIndex((row) => row.id === id);
+
+    if (rowIndex > -1 && !this.#database[table][rowIndex].completed_at) {
+      this.#database[table][rowIndex] = {
+        ...this.#database[table][rowIndex],
+        completed_at: new Date(),
+      };
+
+      this.#persist();
+    } else {
+      this.#database[table][rowIndex] = {
+        ...this.#database[table][rowIndex],
+        completed_at: null,
+      };
+
+      this.#persist();
+    }
   }
 }
